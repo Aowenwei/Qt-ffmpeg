@@ -25,8 +25,8 @@ protected slots:
   void on_btn_back_2_clicked();
   void on_btn_regain_clicked();
   void on_btn_countrieslist_clicked();
-  void on_finshedSingou(QNetworkReply *reply);
-  void on_finshedCaptcha(QNetworkReply *reply);
+  void on_finshedSingou();
+  void on_finshedCaptcha();
 
   QStackedWidget *getstackedwidget();
 signals:
@@ -39,8 +39,9 @@ private:
   QString pwd{};
   QString tip_text;
   QTimer *time;
-  QNetworkAccessManager *NetSignou;
-  QNetworkAccessManager *Sentcaptcha;
+  QNetworkAccessManager* manger;
+  QNetworkReply *NetSignou;
+  QNetworkReply*Sentcaptcha;
 };
 
 #endif // SIGNUP_H

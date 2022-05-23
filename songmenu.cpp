@@ -1,5 +1,6 @@
 ﻿#include "songmenu.h"
 #include "ui_songmenu.h"
+#include "Remark/remark.h"
 #include "base.h"
 #include "tag.h"
 #include <QNetworkAccessManager>
@@ -16,20 +17,17 @@ SongMenu::SongMenu(QWidget* parent) :
 	ui(new Ui::SongMenu)
 {
 	ui->setupUi(this);
+	remark = new Remark(ui->tab_remark);
+	remark->hide();
+	
+	manger = new QNetworkAccessManager(this);
 	//自动换行
 	ui->lab_description->setWordWrap(true);
 	ui->lab_pic->setScaledContents(true);
 	base = new Base(ui->tab_SongTable);
-	NetSongMenu = new QNetworkAccessManager(this);
-	NetAllSong = new QNetworkAccessManager(this);
-	NetPic = new QNetworkAccessManager(this);
-	NetDetail = new QNetworkAccessManager(this);
 	//设置第一列表头自适应widget宽高
 	ui->tab_SongTable->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
-	connect(NetSongMenu, &QNetworkAccessManager::finished, this, &SongMenu::on_finshedNetSongMenu);
-	connect(NetAllSong, &QNetworkAccessManager::finished, this, &SongMenu::on_finsedNetAllSong);
-	connect(NetPic, &QNetworkAccessManager::finished, this, &SongMenu::on_finsedNetPic);
-	connect(NetDetail, &QNetworkAccessManager::finished, this, &SongMenu::on_finshedNetDetail);
+
 	//获取用户歌单
 	RequestUserSongMenu();
 	//加载剩余的数据
@@ -62,6 +60,10 @@ SongMenu::SongMenu(QWidget* parent) :
 			}
 		}
 		});
+
+	connect(ui->tabWidget, &QTabWidget::tabBarClicked, this, &SongMenu::on_TableWidget_taBarClicked);
+	//点击评论
+	connect(base->Actcomment, &QAction::triggered, this, &SongMenu::on_clickedComment);
 }
 
 SongMenu::~SongMenu()
@@ -85,9 +87,11 @@ void SongMenu::RequestUserSongMenu()
 		QString Url{ QString("http://localhost:3000/user/playlist?uid=%1").arg(userId) };
 		QNetworkRequest* req = config.setCookies();
 		req->setUrl(Url);
-		NetSongMenu->get(*req);
+		NetSongMenu = manger->get(*req);
+		connect(NetSongMenu, &QNetworkReply::finished, this, &SongMenu::on_finshedNetSongMenu);
 	}
 }
+
 void SongMenu::SongMenuAt(const int index)
 {
 	base->DelTableWidgetRow();
@@ -97,7 +101,8 @@ void SongMenu::SongMenuAt(const int index)
 		.arg(songlistMenu.at(index).id).arg(songlistMenu.at(index).trackCount) };
 	QNetworkRequest* request{ config.setCookies() };
 	request->setUrl(Url);
-	NetAllSong->get(*request);
+	NetAllSong = manger->get(*request);
+	connect(NetAllSong, &QNetworkReply::finished, this, &SongMenu::on_finsedNetAllSong);
 }
 
 /*
@@ -106,13 +111,16 @@ void SongMenu::SongMenuAt(const int index)
 */
 void SongMenu::getSongMenuID(const size_t ID, const int limit)
 {
+	songMenuID = ID;
 	base->loadMovie();
 	base->DelTableWidgetRow();
 	emit DataLoading();
 	QString Url{ QString("http://localhost:3000/playlist/track/all?id=%1&limit=%2").arg(ID).arg(limit) };
 	QString DeaUrl{ QString("http://localhost:3000/playlist/detail?id=%1").arg(ID) };
-	NetDetail->get(QNetworkRequest(DeaUrl));
-	NetAllSong->get(QNetworkRequest(Url));
+	NetDetail = manger->get(QNetworkRequest(DeaUrl));
+	NetAllSong = manger->get(QNetworkRequest(Url));
+	connect(NetAllSong, &QNetworkReply::finished, this, &SongMenu::on_finsedNetAllSong);
+	connect(NetDetail, &QNetworkReply::finished, this, &SongMenu::on_finshedNetDetail);
 }
 
 void SongMenu::CreatorSongMuen(const QString& str)
@@ -140,7 +148,7 @@ void SongMenu::CreatorSongMuen(const QString& str)
 		});
 }
 
-void SongMenu::DelereSongMuenu(const int ID)
+void SongMenu::DeleteSongMuenu(const int ID)
 {
 	QString URL{ "http://localhost:3000/playlist/delete?id=" + ID };
 	QNetworkAccessManager* del = new QNetworkAccessManager(this);
@@ -220,11 +228,11 @@ QStringList SongMenu::getSongMenu()
 }
 
 
-void SongMenu::on_finshedNetSongMenu(QNetworkReply* reply)
+void SongMenu::on_finshedNetSongMenu()
 {
-	if (reply->error() == QNetworkReply::NoError) {
+	if (NetSongMenu->error() == QNetworkReply::NoError) {
 		QJsonParseError err_t{};
-		QJsonDocument document = QJsonDocument::fromJson(reply->readAll(), &err_t);
+		QJsonDocument document = QJsonDocument::fromJson(NetSongMenu->readAll(), &err_t);
 		if (err_t.error == QJsonParseError::NoError) {
 			QJsonObject rot = document.object();
 			QJsonValue value = rot.value("playlist");
@@ -251,6 +259,8 @@ void SongMenu::on_finshedNetSongMenu(QNetworkReply* reply)
 							SongMenu.userID = userobj.value("userId").toInt();
 							SongMenu.nickname = userobj.value("nickname").toString();
 							SongMenu.avatarUrl = userobj.value("avatarUrl").toString();
+
+
 							//QNetworkAccessManager* pic = new QNetworkAccessManager(this);
 							//QEventLoop loop;
 							//loop.setParent(this);
@@ -272,15 +282,14 @@ void SongMenu::on_finshedNetSongMenu(QNetworkReply* reply)
 			}
 		}
 	}
-	reply->deleteLater();
 }
 
 //歌单所有歌曲  测试id = 602336734
-void SongMenu::on_finsedNetAllSong(QNetworkReply* reply)
+void SongMenu::on_finsedNetAllSong()
 {
-	if (reply->error() == QNetworkReply::NoError) {
+	if (NetAllSong->error() == QNetworkReply::NoError) {
 		QJsonParseError err_t{};
-		QJsonDocument document = QJsonDocument::fromJson(reply->readAll(), &err_t);
+		QJsonDocument document = QJsonDocument::fromJson(NetAllSong->readAll(), &err_t);
 		//我喜欢的音乐了列表ID
 		if (err_t.error == QJsonParseError::NoError) {
 			QJsonObject rot = document.object();
@@ -297,20 +306,23 @@ void SongMenu::on_finsedNetAllSong(QNetworkReply* reply)
 			loadData();
 		}
 	}
-	reply->deleteLater();
 }
 
-void SongMenu::on_finshedNetDetail(QNetworkReply* reply) {
-	if (reply->error() == QNetworkReply::NoError) {
+void SongMenu::on_finshedNetDetail() {
+	if (NetDetail->error() == QNetworkReply::NoError) {
 		QJsonParseError err_t{};
 
-		QJsonDocument document = QJsonDocument::fromJson(reply->readAll(), &err_t);
+		QJsonDocument document = QJsonDocument::fromJson(NetDetail->readAll(), &err_t);
 		if (err_t.error == QJsonParseError::NoError) {
 			QJsonObject rot = document.object();
 			QJsonObject playlistobj = rot.value("playlist").toObject();
-			tempMuenInfo.coverImgUrl = playlistobj.value("coverImgUrl").toString();
-			NetPic->get(QNetworkRequest(tempMuenInfo.coverImgUrl));
+			tempMuenInfo.commentCount = playlistobj.value("commentCount").toInt();
+			ui->tabWidget->setTabText(1, QString("评论(%1)").arg(tempMuenInfo.commentCount));
 
+			tempMuenInfo.coverImgUrl = playlistobj.value("coverImgUrl").toString();
+			NetPic = manger->get(QNetworkRequest(tempMuenInfo.coverImgUrl));
+
+			connect(NetPic, &QNetworkReply::finished, this, &SongMenu::on_finsedNetPic);
 			tempMuenInfo.id = playlistobj.value("id").toVariant().toULongLong();
 
 			tempMuenInfo.name = playlistobj.value("name").toString();
@@ -331,6 +343,9 @@ void SongMenu::on_finshedNetDetail(QNetworkReply* reply) {
 			tempMuenInfo.trackCount = playlistobj.value("trackCount").toInt();
 			ui->lab_songsum->setText(QString::number(tempMuenInfo.trackCount));
 
+			tempMuenInfo.subscribedCount = playlistobj.value("subscribedCount").toVariant().toULongLong();
+			ui->btn_subscribedCount->setText(QString::number(tempMuenInfo.subscribedCount));
+
 			//歌单创建者
 			QJsonValue creat = playlistobj.value("creator");
 			if (creat.isObject()) {
@@ -344,6 +359,7 @@ void SongMenu::on_finshedNetDetail(QNetworkReply* reply) {
 						pix.loadFromData(reply->readAll());
 						ui->btn_userpic->setIconSize(ui->btn_userpic->size());
 						ui->btn_userpic->setIcon(pix);
+						ui->btn_userpic->adjustSize();
 						qDebug() << "获取用户头像完毕\n";
 					}
 					reply->deleteLater();
@@ -352,9 +368,11 @@ void SongMenu::on_finshedNetDetail(QNetworkReply* reply) {
 				tempMuenInfo.nickname = CObj.value("nickname").toString();
 				ui->btn_user->setText(tempMuenInfo.nickname);
 				ui->btn_user->setStyleSheet("color:blue");
+				ui->btn_user->adjustSize();
 				tempMuenInfo.userID = CObj.value("userId").toInt();
 			}
-
+			//此处优化方法，空间改为widget，每一个标签就是一个按钮
+			//点击相应的按钮就跳转到相应的歌单
 			playlistobj.value("tags");
 			QJsonValue val = playlistobj.value("tags");
 			if (val.isArray()) {
@@ -364,25 +382,44 @@ void SongMenu::on_finshedNetDetail(QNetworkReply* reply) {
 					//btn->setObjectName("btn_" + n);
 					//ui->tag_horizontalLayout->addWidget(btn);
 					ui->btn_tag_1->setText(rhs.toString() + " ");
+					ui->btn_tag_1->adjustSize();
 				}
 			}
 		}
 	}
-	reply->deleteLater();
 }
-void SongMenu::on_finsedNetPic(QNetworkReply* reply)
+
+void SongMenu::on_finsedNetPic()
 {
-	if (reply->error() == QNetworkReply::NoError) {
+	if (NetPic->error() == QNetworkReply::NoError) {
 		QPixmap pix;
-		pix.loadFromData(reply->readAll());
+		pix.loadFromData(NetPic->readAll());
 		ui->lab_pic->setPixmap(pix);
 	}
-	reply->deleteLater();
 }
 
+void SongMenu::on_clickedComment()
+{
+	int curindex = ui->tab_SongTable->currentIndex().row();
+	remark->getMusicComment(taglsit->at(curindex).Songid, 1, 20);
+	qDebug() << "****歌曲评论";
+	emit C_Comment();
+}
 
+void SongMenu::on_TableWidget_taBarClicked(int index)
+{
+	if (index == 1) {
+		qDebug() << "*************SongMenu ID = " << songMenuID;
+		remark->getSongMenuComment(songMenuID, 1, 20);
+		remark->show();
+		ui->gridLayout_4->addWidget(remark);
+		remark->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
+		remark->adjustSize();
+
+	}
+}
 
 void SongMenu::on_btn_playAll_clicked() {
 	emit SongMenu_playAll(this);
-	qDebug() << "全部播放被点击";
+	qDebug() << "播放歌单所有歌曲";
 }

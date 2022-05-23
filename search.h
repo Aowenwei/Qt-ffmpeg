@@ -75,10 +75,11 @@ private slots:
 	//listwidg_song里的部件被点击
 	void on_listwidg_song_itemClicked(QListWidgetItem*);
 	void on_tabClicked(int index);
-	void on_finshedSinger(QNetworkReply*);
+	void on_finshedSinger();
 signals:
 	void play(Search*, const int index);
 	void playAll(Search*);
+	//还未实现
 	void Nextplay(Search*, const int index, const QString ID);
 	void songID();
 	void clickedTopSeach();
@@ -117,9 +118,10 @@ private:
 	QList<NetSongTag> taglist{};
 	QList<Singer>SingerIdList{};
 	QNetworkRequest* NetRequest;
-	QNetworkAccessManager* NetManager;
-	QNetworkAccessManager* NetSinger;
-	QNetworkAccessManager* NetSingetPic;
+
+	QNetworkAccessManager* Manager;
+	QNetworkReply* NetSinger{};
+	QNetworkReply* NetSingetPic{};
 	//区分每次请求的类型
 	QMap<QNetworkReply*, RequestType> typeMap;
 };

@@ -7,6 +7,7 @@
 #include "tag.h"
 
 class Base;
+class Remark;
 class UserSongMuen;
 class QNetworkReply;
 class QNetworkAccessManager;
@@ -39,8 +40,10 @@ public:
 	QString description{};
 	//标签
 	QString tags{};
-	//各大名创建者的图片
+	//创建者的图片
 	QString avatarUrl{};
+	//评论总数
+	int commentCount{};
 };
 
 class SongMenu : public QWidget
@@ -60,28 +63,38 @@ public:
 	void getSongMenuID(const size_t ID = 0, const int limit = 10);
 	//创建歌单
 	void CreatorSongMuen(const QString& name);
-	void DelereSongMuenu(const int ID);
-
+	void DeleteSongMuenu(const int ID);
+	void SetInformation(QString& name, QString& crutTime, size_t sub,
+		QString& _tag, int song, size_t playNum, QString& des);
 	QStringList GetPlayList() { return SongID; }
+	Remark* getRemark() { return remark; }
 signals:
 	//加载歌单列表
 	void DataLoading();
 	void CreatorSongMenuOk();
 	void DeleteOk();
 	void SongMenu_playAll(SongMenu*);
+	void Nextplay(SongMenu*, const int index, const QString ID);
 protected slots:
 	void on_btn_playAll_clicked();
+	void on_finshedNetSongMenu();
+	void on_finsedNetAllSong();
+	void on_finshedNetDetail();
+	void on_finsedNetPic();
+	void on_clickedComment();
+	//QTabWidget的Item被点击
+	void on_TableWidget_taBarClicked(int index);
 
-	void on_finshedNetSongMenu(QNetworkReply*);
-	void on_finsedNetAllSong(QNetworkReply*);
-	void on_finshedNetDetail(QNetworkReply*);
-	void on_finsedNetPic(QNetworkReply*);
+signals:
+	void C_Comment();
+
 private:
 	Ui::SongMenu* ui;
 	int userId{};
-	int songMenuID{};
+	size_t songMenuID{};
 	int curtableindex{};
 	Base* base;
+	Remark* remark;
 	Config config{};
 	UserSongMuen tempMuenInfo{};
 	//保存用户歌单
@@ -90,11 +103,12 @@ private:
 	M_Tag tag{};
 	QList<Temptag>* taglsit;
 	QStringList SongID{};
-	QNetworkAccessManager* NetSongMenu;
-	QNetworkAccessManager* NetAllSong;
+	QNetworkAccessManager* manger;
+	QNetworkReply* NetSongMenu;
+	QNetworkReply* NetAllSong;
 	//拿到歌单的描述之类的
-	QNetworkAccessManager* NetDetail;
-	QNetworkAccessManager* NetPic;
+	QNetworkReply* NetDetail;
+	QNetworkReply* NetPic;
 };
 
 #endif // SONGMENU_H

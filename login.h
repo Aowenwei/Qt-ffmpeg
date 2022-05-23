@@ -94,7 +94,7 @@ private slots:
 	void on_QRCexpired();
 signals:
 	void LoginSucces();
-
+	void lououtSucces();
 private:
 	Ui::Login* ui;
 	//用于检测扫码状态

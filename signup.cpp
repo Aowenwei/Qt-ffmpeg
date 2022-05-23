@@ -15,12 +15,11 @@
 #include <QTimer>
 Signup::Signup(QDialog *parent) : QDialog(parent), ui(new Ui::Signup) {
   ui->setupUi(this);
+  manger = new QNetworkAccessManager(this);
   tip_text = ui->lab_text->text();
   this->setWindowTitle("注册");
   time = new QTimer(this);
   ui->stackedWidget->setCurrentIndex(0);
-  NetSignou = new QNetworkAccessManager(this);
-  Sentcaptcha = new QNetworkAccessManager(this);
 
   connect(time, &QTimer::timeout, this, [&]() {
     static int count = 60;
@@ -38,11 +37,8 @@ Signup::Signup(QDialog *parent) : QDialog(parent), ui(new Ui::Signup) {
 
   connect(ui->line_pwd, &QLineEdit::textChanged, this,
           [&] { ui->lab_text->setText(tip_text); });
-  connect(NetSignou, &QNetworkAccessManager::finished, this,
-          &Signup::on_finshedSingou);
 
-  connect(Sentcaptcha, &QNetworkAccessManager::finished, this,
-          &Signup::on_finshedCaptcha);
+
 }
 
 Signup::~Signup() { delete ui; }
@@ -79,7 +75,10 @@ void Signup::on_btn_signin_clicked() {
 
   QString captcha_url{
       QString("http://localhost:3000/captcha/sent?phone=%1").arg(phone)};
-  Sentcaptcha->get(QNetworkRequest(captcha_url));
+  Sentcaptcha = manger->get(QNetworkRequest(captcha_url));
+
+  connect(Sentcaptcha, &QNetworkReply::finished, this,
+	  &Signup::on_finshedCaptcha);
 }
 
 //重新计时
@@ -94,8 +93,8 @@ void Signup::on_btn_countrieslist_clicked() {
 }
 
 //处理注册json
-void Signup::on_finshedSingou(QNetworkReply *reply) {
-  if (reply->error() == QNetworkReply::NoError) {
+void Signup::on_finshedSingou() {
+  if (NetSignou->error() == QNetworkReply::NoError) {
     const int rect =
         QMessageBox::information(this, "tip", "注册成功,是否返回登录？",
                                  QMessageBox::Yes, QMessageBox::No);
@@ -106,13 +105,12 @@ void Signup::on_finshedSingou(QNetworkReply *reply) {
       this->close();
     }
   }
-  reply->deleteLater();
 }
 
-void Signup::on_finshedCaptcha(QNetworkReply *reply) {
-  if (reply->error() == QNetworkReply::NoError) {
+void Signup::on_finshedCaptcha() {
+  if (Sentcaptcha->error() == QNetworkReply::NoError) {
     QJsonParseError err_t{};
-    QJsonDocument document = QJsonDocument::fromJson(reply->readAll(), &err_t);
+    QJsonDocument document = QJsonDocument::fromJson(Sentcaptcha->readAll(), &err_t);
     if (err_t.error == QJsonParseError::NoError) {
       QJsonObject root = document.object();
 
@@ -134,7 +132,9 @@ void Signup::on_finshedCaptcha(QNetworkReply *reply) {
                         .arg(phone)
                         .arg(pwd)
                         .arg(cap)};
-        NetSignou->get(QNetworkRequest(url));
+        NetSignou=manger->get(QNetworkRequest(url));
+		connect(NetSignou, &QNetworkReply::finished, this,
+			&Signup::on_finshedSingou);
       } else {
         QString errmeg = root.value("message").toString();
 
@@ -142,5 +142,4 @@ void Signup::on_finshedCaptcha(QNetworkReply *reply) {
       }
     }
   }
-  reply->deleteLater();
 }

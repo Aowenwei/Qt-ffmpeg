@@ -15,10 +15,12 @@ QT_END_NAMESPACE
 enum status { STATE_VOLUME };
 class Config;
 class M_Tag;
+class Movie;
 class skin;
 class Base;
 class Login;
 class lyric;
+class Remark;
 class Mp3tag;
 class Search;
 class QLineEdit;
@@ -39,6 +41,10 @@ class Music : public QMainWindow {
 private:
 	int sec{};
 	Ui::Music* ui;
+	//s评论
+	Remark *remark;
+	Movie* movie;
+	QDialog* Creat;
 	QLineEdit* edit;
 	QString SongName{};
 	unsigned int CurrVolume{};
@@ -125,6 +131,7 @@ public:
 	void RecommendedDailyConnect();
 	void SingerDetailsConnect();
 	void SongMenuConnect();
+	void MovieConnect();
 
 signals:
 	void updateSongLrc(int sec);

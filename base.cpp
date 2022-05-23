@@ -176,6 +176,7 @@ void Base::CreatorMenu() {
 	menu->addSeparator();
 	menu->addAction(Actcollect);
 	menu->addAction(Actdownload);
+
 }
 
 void Base::CreatorMenu(const QList<QAction*> Act) {

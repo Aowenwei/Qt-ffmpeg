@@ -40,10 +40,10 @@ public:
 	//QList<unsigned int> GetPlaylistID() { return ID; }
 protected slots:
 	void on_btn_playAll_clicked();
-	void on_finsedNetSingerDet(QNetworkReply* reply);
-	void on_finshedNetTop50(QNetworkReply* reply);
-	void on_finshedNetMV(QNetworkReply* reply);
-	void on_finshedGetPic(QNetworkReply* reply);
+	void on_finsedNetSingerDet();
+	void on_finshedNetTop50();
+	void on_finshedNetMV();
+	void on_finshedGetPic();
 	//选项卡被点击
 	void on_tabWidget_tabBarClicked(int index);
 	void on_mvBtnClicked();
@@ -66,10 +66,12 @@ private:
 	QQueue<QNetworkReply*>queueReply;
 	QStringList songid{};
 	//QQueue<QNetworkReply*>MV_PIC_reply;
-	QNetworkAccessManager* NetSingerDet;
-	QNetworkAccessManager* NetTop50;
-	QNetworkAccessManager* NetMV;
-	QNetworkAccessManager* NetGetPic;
+	QNetworkAccessManager* manger;
+
+	QNetworkReply* NetSingerDet;
+	QNetworkReply* NetTop50;
+	QNetworkReply* NetMV;
+	QNetworkReply* NetGetPic;
 };
 
 #endif // SINGERDETAILS_H

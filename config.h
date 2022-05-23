@@ -27,6 +27,7 @@ public:
 	void DelCongif(const QStringList strlist);
 	void DelCongif(const QString str);
 	void ChangData(const QString& str, const QVariant& val);
+	void Sync();
 	QByteArray GetCookies();
 	QStringList GetAllValue(const QString key);
 	QString GetValue(const QString& str);

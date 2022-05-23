@@ -18,6 +18,7 @@ SingerDetails::SingerDetails(QWidget* parent) :
 	ui(new Ui::SingerDetails)
 {
 	ui->setupUi(this);
+	manger = new QNetworkAccessManager(this);
 	base = new Base(ui->top50_list);
 	ui->top50_list->horizontalHeader()->hide();
 	ui->top50_list->setColumnCount(3);
@@ -26,14 +27,6 @@ SingerDetails::SingerDetails(QWidget* parent) :
 	//图片自适应
 	ui->lab_Singerpic->setScaledContents(true);
 	ui->lab_top50pic->setScaledContents(true);
-	NetSingerDet = new QNetworkAccessManager(this);
-	NetTop50 = new QNetworkAccessManager(this);
-	NetMV = new QNetworkAccessManager(this);
-	NetGetPic = new QNetworkAccessManager(this);
-	connect(NetSingerDet, &QNetworkAccessManager::finished, this, &SingerDetails::on_finsedNetSingerDet);
-	connect(NetTop50, &QNetworkAccessManager::finished, this, &SingerDetails::on_finshedNetTop50);
-	connect(NetMV, &QNetworkAccessManager::finished, this, &SingerDetails::on_finshedNetMV);
-	connect(NetGetPic, &QNetworkAccessManager::finished, this, &SingerDetails::on_finshedGetPic);
 
 	//菜单按钮
 	connect(base->Actcomment, &QAction::triggered, this, [&]() {});
@@ -72,11 +65,12 @@ void SingerDetails::setID(const int id)
 {
 	singerID = id;
 	QString Url{ QString("http://localhost:3000/artist/detail?id=%1").arg(id) };
-	NetSingerDet->get(QNetworkRequest(Url));
-
+	NetSingerDet = manger->get(QNetworkRequest(Url));
+	connect(NetSingerDet, &QNetworkReply::finished, this, &SingerDetails::on_finsedNetSingerDet);
 	//歌手top50首
 	QString topUrl{ QString("http://localhost:3000/artist/top/song?id=%1").arg(id) };
-	NetTop50->get(QNetworkRequest(topUrl));
+	NetTop50 = manger->get(QNetworkRequest(topUrl));
+	connect(NetTop50, &QNetworkReply::finished, this, &SingerDetails::on_finshedNetTop50);
 }
 
 
@@ -86,12 +80,12 @@ void SingerDetails::on_btn_playAll_clicked()
 	emit playAll(this);
 }
 
-void SingerDetails::on_finsedNetSingerDet(QNetworkReply* reply)
+void SingerDetails::on_finsedNetSingerDet()
 {
-	if (reply->error() == QNetworkReply::NoError) {
+	if (NetSingerDet->error() == QNetworkReply::NoError) {
 		Singer singer{};
 		QJsonParseError err_t{};
-		QJsonDocument document = QJsonDocument::fromJson(reply->readAll(), &err_t);
+		QJsonDocument document = QJsonDocument::fromJson(NetSingerDet->readAll(), &err_t);
 		if (err_t.error == QJsonParseError::NoError) {
 			QJsonObject rot = document.object();
 			QJsonValue data = rot.value("data");
@@ -130,17 +124,14 @@ void SingerDetails::on_finsedNetSingerDet(QNetworkReply* reply)
 				}
 			}
 		}
-
-	}
-
-	reply->deleteLater();
+			}
 }
 
-void SingerDetails::on_finshedNetTop50(QNetworkReply* reply)
+void SingerDetails::on_finshedNetTop50()
 {
-	if (reply->error() == QNetworkReply::NoError) {
+	if (NetTop50->error() == QNetworkReply::NoError) {
 		QJsonParseError err_t{};
-		QJsonDocument document = QJsonDocument::fromJson(reply->readAll(), &err_t);
+		QJsonDocument document = QJsonDocument::fromJson(NetTop50->readAll(), &err_t);
 		if (err_t.error == QJsonParseError::NoError) {
 			QJsonObject rot = document.object();
 			tag.ParseDetailsSong(rot, "songs");
@@ -149,8 +140,6 @@ void SingerDetails::on_finshedNetTop50(QNetworkReply* reply)
 		}
 		loadData();
 	}
-
-	reply->deleteLater();
 }
 
 
@@ -165,7 +154,8 @@ void SingerDetails::on_tabWidget_tabBarClicked(int index)
 		* id = 歌手ID
 		*/
 		QString MVURL{ QString("http://localhost:3000/artist/mv?id=%1").arg(singerID) };
-		NetMV->get(QNetworkRequest(MVURL));
+		NetMV=manger->get(QNetworkRequest(MVURL));
+		connect(NetMV, &QNetworkReply::finished, this, &SingerDetails::on_finshedNetMV);
 	}
 	break;
 	case 3:
@@ -178,11 +168,11 @@ void SingerDetails::on_tabWidget_tabBarClicked(int index)
 
 
 //获取歌手MV
-void SingerDetails::on_finshedNetMV(QNetworkReply* reply)
+void SingerDetails::on_finshedNetMV()
 {
-	if (reply->error() == QNetworkReply::NoError) {
+	if (NetMV->error() == QNetworkReply::NoError) {
 		QJsonParseError err_t{};
-		QJsonDocument document = QJsonDocument::fromJson(reply->readAll(), &err_t);
+		QJsonDocument document = QJsonDocument::fromJson(NetMV->readAll(), &err_t);
 		if (err_t.error == QJsonParseError::NoError) {
 			QJsonObject obj = document.object();
 			QJsonValue val = obj.value("mvs");
@@ -203,7 +193,8 @@ void SingerDetails::on_finshedNetMV(QNetworkReply* reply)
 						_mv.playCount = obj.value("playCount").toVariant().toULongLong();
 						_mv.publishTime = obj.value("publishTime").toString();
 						mv.push_back(_mv);
-						NetGetPic->get(QNetworkRequest(_mv.imgurl));
+						NetGetPic = manger->get(QNetworkRequest(_mv.imgurl));
+						connect(NetGetPic, &QNetworkReply::finished, this, &SingerDetails::on_finshedGetPic);
 					}
 				}
 				//会抛异常
@@ -211,21 +202,19 @@ void SingerDetails::on_finshedNetMV(QNetworkReply* reply)
 			}
 		}
 	}
-	reply->deleteLater();
 }
 
 
-void SingerDetails::on_finshedGetPic(QNetworkReply* reply) {
-	if (reply->error() == QNetworkReply::NoError) {
+void SingerDetails::on_finshedGetPic() {
+	if (NetGetPic->error() == QNetworkReply::NoError) {
 		QPixmap pix{};
-		pix.loadFromData(reply->readAll());
+		pix.loadFromData(NetGetPic->readAll());
 		mvpic.push_back(pix);
 	}
 	qDebug() << "on_finshedGetPic";
 	if (mvpic.length() == mv.length()) {
 		addMVtoTabwidget();
 	}
-	reply->deleteLater();
 }
 
 

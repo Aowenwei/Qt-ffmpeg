@@ -44,6 +44,8 @@ class Recommend : public QWidget {
 public:
 	explicit Recommend(QWidget* parent = nullptr);
 	virtual ~Recommend();
+	//清空首页的数据
+	void clear_All();
 	//将所有的Btn_rec_..控件集合
 	void addBtn_rec_();
 	void addLab_rec_();
@@ -78,8 +80,7 @@ protected slots:
 	void on_FinishedNetRecPlaylist();
 	//首页9个推荐歌单图片
 	void on_FinshedNetpic();
-
-
+	void on_finishedNetRecPlaylist_1();
 	//void on_FinshedNetMyLikeMusicId(QNetworkReply*);
 
 private:
@@ -102,18 +103,20 @@ private:
 	QList<QLabel*>	lab_title;
 	QList<QPushButton*> btn_recAll{};
 
-	//保存歌单ID和歌曲数量
+	//保存歌单ID和歌曲数量(需登录)
 	QList<RecPlaylist>RecList;
 	QNetworkRequest* request;
-	QNetworkAccessManager * manger;
+	QNetworkAccessManager* manger;
 	QNetworkReply* NetNewSong{};
 	QNetworkReply* NetNewDisc{};
 	//专辑封面
 	QNetworkReply* NetAlbumPic{};
 	//推荐单曲列表
 	QNetworkReply* NetRecommend{};
-	//每日首页推荐歌单
+	//每日首页推荐歌单(需要的登录)
 	QNetworkReply* NetRecPlaylist{};
+	//每日首页推荐歌单(不需要的登录)
+	QNetworkReply* NetRecPlaylist_1{};
 	//个性推荐UI 9张图片
 	QNetworkReply* Netpic{};
 	//我喜欢的音乐 -- ID

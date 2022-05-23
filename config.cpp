@@ -24,7 +24,11 @@ Config::~Config() {
 void Config::setPath(const QString path) {
 	m_qstrFileName = path;
 	m_psetting = new QSettings(m_qstrFileName, QSettings::IniFormat);
-	m_psetting->setIniCodec(QTextCodec::codecForName("GBK"));
+	m_psetting->setIniCodec(QTextCodec::codecForName("UTF-8"));
+}
+
+void Config::Sync() {
+	m_psetting->sync();
 }
 
 void Config::SetValue(const QString key, const QVariant val) {
@@ -92,10 +96,10 @@ QString Config::GetValue(const QString& str) {
 QNetworkRequest* Config::setCookies() {
 	m_psetting->beginGroup("cookie");
 	QByteArray byte = m_psetting->value("cookie", "null").toByteArray();
-	m_psetting->endGroup();
 
 	if (byte.isEmpty()) {
 		fprintf(stdout, "Error: %s  %d\n", __FILE__, __LINE__);
+		m_psetting->endGroup();
 		return request;
 	}
 	else {
@@ -106,6 +110,7 @@ QNetworkRequest* Config::setCookies() {
 		var.setValue(cookies);
 		//设置请求头
 		request->setHeader(QNetworkRequest::CookieHeader, var);
+		m_psetting->endGroup();
 		return request;
 	}
 }

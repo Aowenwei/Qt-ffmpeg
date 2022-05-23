@@ -9,6 +9,9 @@
 
 int main(int argc, char* argv[]) {
 	QApplication a(argc, argv);
+	//设置字体
+	QFont font("Consolas", 11);
+	a.setFont(font);
 	//窗体图标
 	//    a.setWindowIcon(QIcon(""));
 	a.setStyle(QStyleFactory::create("macintosh")); //设置窗口风格

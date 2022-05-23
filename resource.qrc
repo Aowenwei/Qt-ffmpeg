@@ -80,6 +80,10 @@
         <file>images/btn_checkin_n.png</file>
         <file>images/lab_cloud.png</file>
         <file>images/crown.png</file>
+        <file>images/msg_h.png</file>
+        <file>images/msg_n.png</file>
+        <file>images/shered_h.png</file>
+        <file>images/shered_n.png</file>
     </qresource>
     <qresource prefix="/gif">
         <file>gif/loading3.gif</file>

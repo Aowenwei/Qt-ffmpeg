@@ -26,4 +26,3 @@ file(GLOB USER_UI_PATH *.ui)
 message(${DIR_LIB_SRCS})
 
 add_library(Recommend_playlist ${DIR_LIB_SRCS} ${USER_UI_PATH}	)
-target_link_libraries(Recommend_playlist Qt5::Widgets Qt5::Network )

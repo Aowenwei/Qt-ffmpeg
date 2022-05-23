@@ -108,19 +108,19 @@ void Login::AutoLogin() {
 	//自动登录，默认打勾
 	ui->checkBox->setCheckState(Qt::Checked);
 	if (config->GetValue("/Pwd/checkState") == "1") {
-		phone = config->GetValue("/Pwd/phone");
-		pwd = config->GetValue("/Pwd/pwd");
-		ui->line_phoneID->setText(phone);
-		ui->line_word->setText(pwd);
-		if (phone.isEmpty() && pwd.isEmpty()) {
-			return;
-		}
-		NetManager = manger->get(QNetworkRequest(
-			QString(
-				"http://localhost:3000/login/cellphone?phone=%1&password=%2")
-			.arg(phone)
-			.arg(pwd)));
-		connect(NetManager, &QNetworkReply::finished, this, &Login::on_replyFinished);
+		//phone = config->GetValue("/Pwd/phone");
+		//pwd = config->GetValue("/Pwd/pwd");
+		//ui->line_phoneID->setText(phone);
+		//ui->line_word->setText(pwd);
+		//if (phone.isEmpty() && pwd.isEmpty()) {
+		//	return;
+		//}
+		//NetManager = manger->get(QNetworkRequest(
+		//	QString(
+		//		"http://localhost:3000/login/cellphone?phone=%1&password=%2")
+		//	.arg(phone)
+		//	.arg(pwd)));
+		//connect(NetManager, &QNetworkReply::finished, this, &Login::on_replyFinished);
 
 		emit LoginSucces();
 		fprintf(stdout, "***login succeed\n***");
@@ -560,6 +560,8 @@ void Login::on_finshedQRC_check() {
 				config->SetBeginGroup("cookie");
 				config->SetValue("cookie", QVariant(cookie));
 				config->endGroup();
+
+				config->SetValue("Pwd/loggingstatus", 1);
 
 				//获取账号信息,带上cookie
 				NetRequest->setUrl(QUrl("http://localhost:3000/user/account?cookie=" + cookie));

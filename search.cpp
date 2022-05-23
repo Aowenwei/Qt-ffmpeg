@@ -21,6 +21,8 @@
 // http://localhost:3000/
 Search::Search(QWidget* parent) : QWidget(parent), ui(new Ui::Search) {
 	ui->setupUi(this);
+	Manager = new QNetworkAccessManager(this);
+
 	base = new Base(ui->table_playlist);
 	mutex = new QMutex();
 	Netstatus = new NetworkStatus;
@@ -64,31 +66,8 @@ Search::Search(QWidget* parent) : QWidget(parent), ui(new Ui::Search) {
 	connect(NetWorkUtil::instance(), &NetWorkUtil::finished, this,
 		&Search::on_replyFinished);
 
-	NetManager = new QNetworkAccessManager(this);
-	NetSinger = new QNetworkAccessManager(this);
-	NetSingetPic = new QNetworkAccessManager(this);
 
-	connect(NetSinger, &QNetworkAccessManager::finished, this,
-		&Search::on_finshedSinger);
 
-	connect(NetSingetPic, &QNetworkAccessManager::finished, this,
-		[&](QNetworkReply* reply) {
-			if (reply->error() == QNetworkReply::NoError) {
-				singerpic.loadFromData(reply->readAll());
-			}
-			qDebug() << "signer pic\n";
-			reply->deleteLater();
-		});
-
-	// connect(NetManager, &QNetworkAccessManager::finished, this,
-	//        [=](QNetworkReply *reply) {
-	//          if (reply->error() == QNetworkReply::NoError) {
-	//            QByteArray byte = reply->readAll();
-	//            QPixmap map;
-	//            map.loadFromData(byte);
-	//          }
-	//          reply->deleteLater();
-	//        });
 	//选项卡被点击
 	connect(ui->tabWidget, &QTabWidget::tabBarClicked, this,
 		&Search::on_tabClicked);
@@ -395,7 +374,9 @@ void Search::on_tabClicked(int index) {
 		QString url{
 			QString("http://localhost:3000/cloudsearch?keywords=%1&type=100")
 				.arg(str) };
-		NetSinger->get(QNetworkRequest(url));
+		NetSinger = Manager->get(QNetworkRequest(url));
+		connect(NetSinger, &QNetworkReply::finished, this,
+			&Search::on_finshedSinger);
 	} break;
 	case 2:
 		break;
@@ -409,10 +390,10 @@ void Search::on_tabClicked(int index) {
 }
 
 
-void Search::on_finshedSinger(QNetworkReply* reply) {
-	if (reply->error() == QNetworkReply::NoError) {
+void Search::on_finshedSinger() {
+	if (NetSinger->error() == QNetworkReply::NoError) {
 		QJsonParseError err_t{};
-		QJsonDocument document = QJsonDocument::fromJson(reply->readAll(), &err_t);
+		QJsonDocument document = QJsonDocument::fromJson(NetSinger->readAll(), &err_t);
 		if (err_t.error == QJsonParseError::NoError) {
 			SingerIdList.clear();
 			QJsonObject rot = document.object();
@@ -432,8 +413,15 @@ void Search::on_finshedSinger(QNetworkReply* reply) {
 
 						//启动一个事件循环，finshed执行完毕以后再往下
 						QEventLoop loop;
-						NetSingetPic->get(QNetworkRequest(singer.getpicUrl()));
-						connect(NetSingetPic, &QNetworkAccessManager::finished, &loop,
+						NetSingetPic = Manager->get(QNetworkRequest(singer.getpicUrl()));
+						connect(NetSingetPic, &QNetworkReply::finished, this,
+							[&]() {
+								if (NetSingetPic->error() == QNetworkReply::NoError) {
+									singerpic.loadFromData(NetSingetPic->readAll());
+								}
+								qDebug() << "signer pic\n";
+							});
+						connect(NetSingetPic, &QNetworkReply::finished, &loop,
 							&QEventLoop::quit);
 						loop.exec();
 
@@ -471,7 +459,6 @@ void Search::on_finshedSinger(QNetworkReply* reply) {
 			}
 		}
 	}
-	reply->deleteLater();
 }
 //许嵩ID = 5771
 void Search::on_listwidg_song_itemClicked(QListWidgetItem* item) {

@@ -4,6 +4,7 @@
 //每日推荐列表
 #include <QWidget>
 class Base;
+class QLabel;
 class Temptag;
 namespace Ui {
 class RecommendedDaily;
@@ -24,6 +25,7 @@ protected slots:
   void on_btn_collectAll_clicked();
 signals:
   void loadOk();
+  void loaderror();
   void play(RecommendedDaily *, const int index);
   void playAll(RecommendedDaily *);
   void Nextplay(RecommendedDaily *, const int index, const QString ID);
@@ -31,6 +33,7 @@ signals:
 private:
   Ui::RecommendedDaily *ui;
   Base *base;
+  QLabel* No_login;
   QStringList PlayerList{};
 };
 

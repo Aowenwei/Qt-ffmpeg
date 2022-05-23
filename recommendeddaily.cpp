@@ -10,6 +10,8 @@ RecommendedDaily::RecommendedDaily(QWidget* parent)
 	ui->setupUi(this);
 	base = new Base(ui->table_songslist);
 	init();
+	//自适应文字长度
+	ui->label_3->adjustSize();
 
 
 	//菜单栏按钮
@@ -45,23 +47,23 @@ void RecommendedDaily::init() {
 }
 
 void RecommendedDaily::loadData(QList<Temptag>* tag) {
-	int index = 0;
+	int _index = 0;
 	PlayerList.clear();
 	for (int i = 0; i != tag->length(); ++i) {
-		ui->table_songslist->insertRow(index);
-		ui->table_songslist->setCellWidget(index, 0, base->setItemWidget());
+		ui->table_songslist->insertRow(_index);
+		ui->table_songslist->setCellWidget(_index, 0, base->setItemWidget());
 		QTableWidgetItem* item1 = new QTableWidgetItem(tag->at(i).Title);
 		QTableWidgetItem* item2 = new QTableWidgetItem(tag->at(i).Artist);
 		QTableWidgetItem* item3 = new QTableWidgetItem(tag->at(i).Ablue);
 		QTableWidgetItem* item4 = new QTableWidgetItem(tag->at(i).Duration);
-		ui->table_songslist->setItem(index, 1, item1);
-		ui->table_songslist->setItem(index, 2, item2);
-		ui->table_songslist->setItem(index, 3, item3);
-		ui->table_songslist->setItem(index, 4, item4);
-	   /* QString Url{QString("https://music.163.com/song/media/outer/url?id=%1.mp3")
-						.arg(rhs.Songid)};*/
-		PlayerList.insert(index, QString::number(tag->at(i).Songid));
-		++index;
+		ui->table_songslist->setItem(_index, 1, item1);
+		ui->table_songslist->setItem(_index, 2, item2);
+		ui->table_songslist->setItem(_index, 3, item3);
+		ui->table_songslist->setItem(_index, 4, item4);
+		/* QString Url{QString("https://music.163.com/song/media/outer/url?id=%1.mp3")
+						 .arg(rhs.Songid)};*/
+		PlayerList.insert(_index, QString::number(tag->at(i).Songid));
+		++_index;
 	}
 	//foreach(const Temptag *rhs, tag) {
 	//	ui->table_songslist->insertRow(index);
@@ -81,14 +83,18 @@ void RecommendedDaily::loadData(QList<Temptag>* tag) {
 	//	++index;
 	//}
 	//数据加载完成
+	//if (No_login != nullptr) {
+	//	No_login->close();
+	//}
 	emit loadOk();
 }
 //账号未登录
 void RecommendedDaily::Notlogin(bool login) {
-	QLabel* lab = new QLabel("未登录账号", ui->table_songslist);
-	lab->move(ui->table_songslist->width() / 2,
+	No_login = new QLabel("未登录账号", ui->table_songslist);
+	No_login->move(ui->table_songslist->width() / 2,
 		(ui->table_songslist->height() / 2));
-	lab->show();
+	No_login->show();
+
 }
 void RecommendedDaily::on_btn_playAll_clicked() { emit playAll(this); }
 

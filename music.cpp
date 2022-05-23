@@ -1,6 +1,7 @@
 ﻿#if _MSC_VER >= 1600 // MSVC2015>1899,对于MSVC2010以上版本都可以使用
 #pragma execution_character_set("utf-8")
 #endif
+#include "Remark/remark.h"
 #include "music.h"
 #include "./ui_music.h"
 #include "singerdetails.h"
@@ -20,6 +21,7 @@
 #include "RecommendPlaylist/recommendplaylist.h"
 #include "search.h"
 #include "skin.h"
+#include "Movie/movie.h"
 #include "soloalbum.h"
 #include "tag.h"
 #include <QComboBox>
@@ -73,6 +75,9 @@ Music::Music(QWidget* parent)
 	connect(ui->down_listWidget, &QListWidget::itemClicked, this,
 		&Music::on_down_listWidgetClicked);
 
+	//视频
+	connect(ui->listWidget, &QListWidget::itemClicked, movie, &Movie::RequestMvMessage);
+
 	connect(login, &Login::LoginSucces, this, &Music::on_login_succes);
 	/* connect(ui->SongMenuList, &QListWidget::currentRowChanged,
 	 ui->stackedWidget, &QStackedWidget::setCurrentIndex);
@@ -81,6 +86,7 @@ Music::Music(QWidget* parent)
 			 ui->stackedWidget, &QStackedWidget::setCurrentIndex);*/
 	connect(this, &Music::updateSongLrc, this,
 		[&](int sec) { lyr->showcontent(sec); });
+
 	//图片自适应大小
 	ui->btn_usepic->setScaledContents(true);
 	//各个界面的connect
@@ -94,6 +100,7 @@ Music::Music(QWidget* parent)
 	RecommendedDailyConnect();
 	SingerDetailsConnect();
 	SongMenuConnect();
+	MovieConnect();
 	//默认打开首页
 	ui->stackedWidget->setCurrentIndex(0);
 }
@@ -141,6 +148,7 @@ void Music::on_login_succes() {
 		perform->setlab_vip(vip);
 		ui->btn_personmessage->setStyleSheet("border-image:url(:/images/vip.png)");
 	}
+	DicMusic->getRecommendUi()->RecommendPlaylist();
 }
 
 void Music::AlbConnect() {
@@ -254,6 +262,7 @@ void Music::PersonFormConnect() {
 	connect(perform, &PersonForm::out, [&]() {
 		ui->btn_login->setText("未登录");
 		ui->btn_usepic->setPixmap(QPixmap(""));
+		DicMusic->getRecommendUi()->RecommendPlaylist();
 		});
 
 	connect(perform, &PersonForm::CheckinOk, this,
@@ -267,13 +276,18 @@ void Music::RecommendedDailyConnect() {
 	connect(DicMusic->getRecDailyUi(), &RecommendedDaily::loadOk, this,
 		[&] { ui->stackedWidget->setCurrentIndex(12); });
 
+	connect(DicMusic->getRecDailyUi(), &RecommendedDaily::loaderror, this,
+		[&] {
+			ui->stackedWidget->setCurrentIndex(12);
+			DicMusic->getRecDailyUi()->Notlogin();
+		});
+
 	connect(DicMusic->getRecDailyUi(), &RecommendedDaily::play, this, [&](RecommendedDaily* rhs, const int index) {
 		this->On_Netplay(rhs, index);
 		});
 	connect(DicMusic->getRecDailyUi(), &RecommendedDaily::Nextplay, this, [&](auto rhs, const int index, const QString id) {
 		this->On_NetNextPlay(rhs, index, id);
 		});
-
 	//歌单歌曲
 	connect(DicMusic->getSongMuen(), &SongMenu::DataLoading, this, [&] {
 		ui->stackedWidget->setCurrentIndex(16);
@@ -296,11 +310,34 @@ void Music::SingerDetailsConnect()
 //专辑UI信号
 void Music::SongMenuConnect()
 {
-	connect(DicMusic->getSongMuen(), &SongMenu::SongMenu_playAll, this, [&](SongMenu *rhs) {
-		qDebug() << "调用专辑UI信号";
+	connect(DicMusic->getSongMuen(), &SongMenu::SongMenu_playAll, this, [&](SongMenu* rhs) {
 		On_NetplayAll(rhs);
 		});
+
+	//打开评论区
+	connect(DicMusic->getSongMuen(), &SongMenu::C_Comment, this, [&]() {
+		ui->stackedWidget->insertWidget(1,DicMusic->getSongMuen()->getRemark());	
+		ui->stackedWidget->setCurrentIndex(1);
+		});
 }
+
+void Music::MovieConnect()
+{
+	connect(movie, &Movie::ShowTheSidebar, this, [&]() {
+		ui->scrollArea->setVisible(true);
+		});
+
+	connect(movie, &Movie::HideTheSidebar, this, [&]() {
+		ui->scrollArea->setVisible(false);
+		});
+
+	connect(ui->stackedWidget, &QStackedWidget::currentChanged, movie, [&](int index) {
+		if (index == 2) {
+			movie->clicked();
+		}
+	});
+}
+
 
 void Music::InstallEventFilter() {
 	//设置接受鼠标右键
@@ -343,12 +380,16 @@ void Music::init() {
 	singetdeatils->hide();
 
 	songmenu = new SongMenu(this);
+
+	remark = new Remark(this);
+
+	movie = new Movie(this);
 	//我的音乐
 	//默认选中第一行
 	ui->listWidget->setCurrentRow(0);
 	ui->stackedWidget->insertWidget(0, DicMusic);
-	ui->stackedWidget->insertWidget(1, new QWidget());
-	ui->stackedWidget->insertWidget(2, new QWidget());
+	ui->stackedWidget->insertWidget(1, remark);
+	ui->stackedWidget->insertWidget(2, movie);
 	ui->stackedWidget->insertWidget(3, new QWidget());
 	ui->stackedWidget->insertWidget(4, new QWidget());
 	ui->stackedWidget->insertWidget(5, new QWidget());
@@ -366,6 +407,7 @@ void Music::init() {
 	ui->stackedWidget->insertWidget(14, search);
 	ui->stackedWidget->insertWidget(15, songmenu);
 	ui->stackedWidget->insertWidget(16, DicMusic->getSongMuen());
+	//ui->stackedWidget->insertWidget(17, remark);
 	//创建的歌单列表
 
 	//默认音量
@@ -640,13 +682,33 @@ void Music::on_down_listWidgetClicked(QListWidgetItem* item) {
 
 void Music::on_btn_SongMenu_clicked() {
 	QString text = config->GetValue("/Pwd/loggingstatus");
+	int playlistCount = config->GetValue("/Userinfo/playlistCount").toInt();
 	ui->SongMenuList->clear();
 	if (text.compare("1") == 0) {
 		QStringList menu{ songmenu->getSongMenu() };
-		foreach(const QString & rhs, menu) {
-			QListWidgetItem* item = new QListWidgetItem(rhs);
+		int x = 0;
+
+
+		for (x; x != menu.length(); ++x) {
+
+			if (x >= playlistCount) {
+				//收藏的歌单
+				QListWidgetItem* _collectItem = new QListWidgetItem(menu.at(x));
+				ui->CollectSongMenuList->addItem(_collectItem);
+				//跳过本次循环
+				continue;
+			}
+
+			//我创建的歌单
+			QListWidgetItem* item = new QListWidgetItem(menu.at(x));
 			ui->SongMenuList->addItem(item);
 		}
+
+
+
+		//foreach(const QString & rhs, menu) {
+		//	
+		//}
 
 		if (ui->SongMenuList->isHidden()) {
 			ui->SongMenuList->show();
@@ -666,7 +728,7 @@ void Music::on_btn_SongMenu_clicked() {
 //创建歌单
 void Music::on_AddSongMenu_clicked() {
 	//    ui->label->setStyleSheet("border-image: url(:/images/btn_down_n.png);");
-	QDialog* Creat = new QDialog(this);
+	Creat = new QDialog(this);
 	Creat->resize(470, 230);
 	Creat->setMaximumSize(470, 230);
 	Creat->setMinimumSize(470, 230);
@@ -886,16 +948,20 @@ void Music::CheckState() {
 void Music::on_btn_pictrue_clicked() {
 	// 歌词界面未打开
 	if (lyr->isHidden()) {
-		ui->scrollArea->hide();
-		ui->stackedWidget->hide();
+		//ui->scrollArea->hide();
+		//ui->stackedWidget->hide();
+		ui->scrollArea->setVisible(false);
+		ui->stackedWidget->setVisible(false);
 		ui->horizontalLayout_2->addWidget(lyr);
 		//search->close();
-		lyr->show();
+		//lyr->show();
+		lyr->setVisible(true);
 	}
 	else {
-		lyr->close();
-		ui->scrollArea->show();
-		ui->stackedWidget->show();
+		//lyr->close();
+		lyr->setVisible(false);
+		ui->scrollArea->setVisible(true);
+		ui->stackedWidget->setVisible(true);
 	}
 }
 

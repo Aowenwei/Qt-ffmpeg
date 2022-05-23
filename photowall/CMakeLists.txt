@@ -24,4 +24,3 @@ message("UiPath = " ${USER_UI_PATH})
 message(${DIR_LIB_SRCS})
 
 add_library(photowall ${DIR_LIB_SRCS} ${USER_UI_PATH}	)
-target_link_libraries(photowall Qt5::Widgets Qt5::Network )

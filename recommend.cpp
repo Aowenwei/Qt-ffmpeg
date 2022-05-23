@@ -48,15 +48,8 @@ Recommend::Recommend(QWidget* parent) : QWidget(parent), ui(new Ui::Recommend) {
 	addLab_rec_();
 
 	manger = new QNetworkAccessManager(this);
+	RecommendPlaylist();
 
-	//每日推荐歌单
-//s /recommend/resource
-	//QString RecPlaylistUrl{ "http://localhost:3000/personalized?limit=9" };
-	QString RecPlaylistUrl{ "http://localhost:3000/recommend/resource" };
-	request = config->setCookies();
-	request->setUrl(RecPlaylistUrl);
-	NetRecPlaylist = manger->get(*request);
-	connect(NetRecPlaylist, &QNetworkReply::finished, this, &Recommend::on_FinishedNetRecPlaylist);
 
 }
 
@@ -71,6 +64,45 @@ Recommend::~Recommend() {
 	// request = nullptr;
 }
 
+void Recommend::clear_All()
+{
+	foreach(const QLabel *rhs, lab_PlayCount){
+		rhs->text().clear();
+	}
+
+	foreach(const QLabel* rhs, lab_title) {
+		rhs->text().clear();
+	}
+
+	foreach(const auto rhs, btn_recAll) {
+		rhs->setIcon(QIcon());
+	}
+}
+
+//获取每日推荐歌单
+void Recommend::RecommendPlaylist()
+{
+	clear_All();
+	RecList.clear();
+	//每日推荐歌单
+	QString tmp = config->GetValue("Userinfo/userId");
+	if (tmp.isEmpty()) {
+		index = 0;
+		QString RecPlaylistUrl{ "http://localhost:3000/personalized?limit=9" };
+		NetRecPlaylist_1 = manger->get(QNetworkRequest(RecPlaylistUrl));
+		connect(NetRecPlaylist_1, &QNetworkReply::finished, this, &Recommend::on_finishedNetRecPlaylist_1);
+	}
+	else {
+		index = 0;
+		QString RecPlaylistUrl{ "http://localhost:3000/recommend/resource" };
+		request = config->setCookies();
+		request->setUrl(RecPlaylistUrl);
+		NetRecPlaylist = manger->get(*request);
+		connect(NetRecPlaylist, &QNetworkReply::finished, this, &Recommend::on_FinishedNetRecPlaylist);
+	}
+}
+
+
 //每日推荐单曲 (需要登录)
 void Recommend::on_btn_rec_1_clicked() {
 	QString loggingstatus = config->GetValue("Pwd/loggingstatus");
@@ -78,13 +110,15 @@ void Recommend::on_btn_rec_1_clicked() {
 	if (0 == loggingstatus.compare("0") || loggingstatus.isEmpty()) {
 		recDaily->show();
 		recDaily->Notlogin(false);
+		emit recDaily->loaderror();
 		return;
 	}
 	else {
+
 		QString Url{ "http://localhost:3000/recommend/songs" };
-		request = config->setCookies();
-		request->setUrl(Url);
-		NetRecommend = manger->get(*request);
+		QNetworkRequest* req = config->setCookies();
+		req->setUrl(Url);
+		NetRecommend = manger->get(*req);
 		connect(NetRecommend, &QNetworkReply::finished, this,
 			&Recommend::on_FinshedNetRecommend);
 	}
@@ -168,7 +202,6 @@ void Recommend::addBtn_rec_()
 			lab->setStyleSheet("color:white;background-color:transparent");
 			lab->setFont(QFont("QFont::Bold"));
 			lab->setAlignment(Qt::AlignRight);
-
 			//拿到所在位置
 			QRect rect = btn_recAll.at(x)->geometry();
 			//设置lab的显示位置
@@ -274,9 +307,54 @@ void Recommend::on_FinshedNetpic()
 	if (Netpic->error() == QNetworkReply::NoError) {
 		QPixmap pix;
 		pix.loadFromData(Netpic->readAll());
+		qDebug() << "x = " << index;
+		//if (index == 9)
+		//	return;
 		btn_recAll.at(index)->setIconSize(QSize(195, 195));
 		btn_recAll.at(index)->setIcon(QIcon(pix));
 		++index;
+		
+	}
+}
+
+void Recommend::on_finishedNetRecPlaylist_1()
+{
+	if (NetRecPlaylist_1->error() == QNetworkReply::NoError) {
+		QJsonParseError err_t;
+		QJsonDocument docment = QJsonDocument::fromJson(NetRecPlaylist_1->readAll(), &err_t);
+		if (err_t.error == QJsonParseError::NoError) {
+			RecPlaylist recplaylist{};
+			QJsonObject obj = docment.object();
+			QJsonValue val = obj.value("result");
+			if (val.isArray()) {
+				QJsonArray ary = val.toArray();
+				int i = 0;
+				foreach(const QJsonValue & rhs, ary) {
+					if (rhs.isObject()) {
+						QJsonObject resultObj = rhs.toObject();
+						recplaylist.id = resultObj.value("id").toVariant().toULongLong();
+						recplaylist.playCount = resultObj.value("playCount").toVariant().toULongLong();
+						recplaylist.picUrl = resultObj.value("picUrl").toString();
+						recplaylist.trackCount = resultObj.value("trackCount").toInt();
+						QString title = resultObj.value("name").toString();
+						lab_title.at(i)->setText(title);
+						lab_PlayCount.at(i)->setText(QString::number(recplaylist.playCount));
+						++i;
+					}
+					RecList.push_back(recplaylist);
+				}
+			}
+			int x = 0;
+			QEventLoop loop;
+			index = 0;
+			for (const auto& i : RecList) {
+				Netpic = manger->get(QNetworkRequest(RecList.at(x).picUrl));
+				connect(Netpic, &QNetworkReply::finished, this, &Recommend::on_FinshedNetpic);
+				connect(Netpic, &QNetworkReply::finished, &loop, &QEventLoop::quit);
+				loop.exec();
+				++x;
+			}
+		}
 	}
 }
 
@@ -291,7 +369,6 @@ void Recommend::on_FinishedNetRecPlaylist()
 			QJsonValue value = rot.value("recommend");
 			if (value.isArray()) {
 				int _index = 0;
-				RecList.clear();
 				RecPlaylist recplay;
 				QJsonArray resAry = value.toArray();
 				for (int x = 1; x != 10; ++x) {
@@ -301,8 +378,7 @@ void Recommend::on_FinishedNetRecPlaylist()
 						QString name = obj.value("name").toString();
 						lab_title.at(_index)->setText(name);
 
-						QString picUrl = obj.value("picUrl").toString();
-						recplay.picUrl = picUrl;
+						recplay.picUrl = obj.value("picUrl").toString();
 						recplay.playCount = obj.value("playcount").toVariant().toLongLong();
 						recplay.trackCount = obj.value("trackCount").toVariant().toLongLong();
 						lab_PlayCount.at(_index)->setText(QString::number(recplay.playCount));
@@ -344,7 +420,7 @@ void Recommend::on_FinishedNetRecPlaylist()
 
 	}
 
-	int x = 0;	index = 0;
+	int x = 0;
 	QEventLoop loop;
 	for (const auto& i : RecList) {
 		Netpic = manger->get(QNetworkRequest(RecList.at(x).picUrl));
